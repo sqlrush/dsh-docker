@@ -1,0 +1,71 @@
+# dsh 的 K8s 部署样例:单副本 + 节点端口 30080 + 节点本机目录存数据。
+# 用前改三处(都标了「改」):镜像标签、DSH_PUBLIC_URL、数据放在哪个节点的哪个目录。
+# 部署:kubectl apply -f dsh.yaml;取登录地址:kubectl -n dsh logs deploy/dsh | grep token=
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dsh
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsh
+  namespace: dsh
+spec:
+  replicas: 1                      # 只能 1:数据目录不支持两个进程同时写
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: dsh}
+  template:
+    metadata:
+      labels: {app: dsh}
+    spec:
+      enableServiceLinks: false    # 不注入 DSH_SERVICE_HOST、DSH_PORT 这类按 Service 名生成的变量
+      # 改:数据放在本机目录,Pod 必须固定在同一个节点上。单节点集群可以删掉这两行
+      # nodeSelector:
+      #   kubernetes.io/hostname: <节点名>
+      initContainers:
+        - name: fix-owner          # 本机目录由 K8s 以 root 建出来,dsh 以 uid 1000 运行,先改属主
+          image: ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64          # 改:与下面的镜像一致
+          imagePullPolicy: IfNotPresent
+          securityContext: {runAsUser: 0}
+          command: ["sh", "-c", "chown 1000:1000 /data/dsh /workspace"]
+          volumeMounts:
+            - {name: data, mountPath: /data/dsh}
+            - {name: workspace, mountPath: /workspace}
+      containers:
+        - name: dsh
+          image: ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64          # 改:用 ctr 导入的离线包时保持这个名字
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: DSH_PUBLIC_URL, value: "http://<节点IP>:30080/"}   # 改:浏览器实际访问的地址
+            # 模型密钥也可以不在这里配,登录后在「设置 → 模型」里填。用 Secret 的写法:
+            # - {name: DEEPSEEK_API_KEY, valueFrom: {secretKeyRef: {name: dsh-model, key: DEEPSEEK_API_KEY}}}
+          ports:
+            - {name: http, containerPort: 3080}
+          readinessProbe:
+            tcpSocket: {port: 3080}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {cpu: "4", memory: 4Gi}
+          volumeMounts:
+            - {name: data, mountPath: /data/dsh}
+            - {name: workspace, mountPath: /workspace}
+      volumes:
+        - name: data
+          hostPath: {path: /srv/dsh/data, type: DirectoryOrCreate}        # 改:按需换目录
+        - name: workspace
+          hostPath: {path: /srv/dsh/workspace, type: DirectoryOrCreate}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dsh
+  namespace: dsh
+spec:
+  type: NodePort
+  selector: {app: dsh}
+  ports:
+    - {name: http, port: 3080, targetPort: 3080, nodePort: 30080}
