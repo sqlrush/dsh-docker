@@ -16,6 +16,15 @@ RUN npm install -g --omit=dev --no-fund --no-audit "@deepseek-ai/dsh@${DSH_VERSI
  && npm cache clean --force \
  && dsh --version
 
+# 老浏览器兼容补丁:Windows 7 上的 Edge 109、360 企业安全浏览器(Chromium 108 内核)等缺新接口的浏览器。
+# 只补缺的接口,新浏览器上不起作用;普通版镜像不装(DSH_LEGACY_COMPAT=0)。
+# 参数放在这里而不是文件开头:前面各层(含 npm 安装的 dsh)两种版本共用、可复用缓存。
+ARG DSH_LEGACY_COMPAT=0
+COPY compat/ /opt/dsh-compat/
+RUN if [ "$DSH_LEGACY_COMPAT" = 1 ]; then \
+      python3 /opt/dsh-compat/patch.py "$(npm root -g)/@deepseek-ai/dsh" /opt/dsh-compat/legacy-compat.js; \
+    fi
+
 COPY entrypoint.sh /usr/local/bin/dsh-entrypoint
 RUN chmod 755 /usr/local/bin/dsh-entrypoint \
  && mkdir -p /data/dsh /workspace \
@@ -36,6 +45,7 @@ LABEL org.opencontainers.image.title="dsh" \
       org.opencontainers.image.description="DeepSeek Harness(@deepseek-ai/dsh)Web 版容器镜像,支持鲲鹏 ARM64" \
       org.opencontainers.image.version="${DSH_VERSION}" \
       org.opencontainers.image.source="https://github.com/sqlrush/dsh-docker" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="MIT" \
+      io.github.sqlrush.dsh.legacy-compat="${DSH_LEGACY_COMPAT}"
 
 ENTRYPOINT ["tini", "--", "dsh-entrypoint"]

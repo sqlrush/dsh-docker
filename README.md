@@ -7,32 +7,37 @@
 | dsh 版本 | `0.2.2-rc.5`：npm 上标为最新稳定（`latest`）的版本。上游目前还没有不带 `rc` 的正式版，`0.2.3` 仍是 alpha，没有采用 |
 | 架构 | `arm64`（鲲鹏 920 等 ARM64 服务器） |
 | 基础 | Debian 12 + Node.js 24，以普通用户（uid 1000）运行 |
-| 镜像名 | `ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64` |
-| 离线包 | `dsh-0.2.2-rc.5-arm64.tar.gz`，约 364 MB（导入后约 2.1 GB） |
+| 镜像名 | **兼容版（推荐）** `ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64`；普通版 `ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64` |
+| 离线包 | `dsh-0.2.2-rc.5-compat-arm64.tar.gz`，约 364 MB（导入后约 2.1 GB） |
+| 浏览器 | 兼容版：Chrome / Edge **108 及以上**（含 Windows 7 上的 Edge 109、360 企业安全浏览器 V13 的**极速模式**）；普通版：Chrome / Edge 122 及以上 |
 
 镜像里只有官方的 dsh 和智能体常用的命令行工具（git、curl、python3、ripgrep、jq 等），不含第三方的管理面板或远程桌面。
+
+**兼容版与普通版只差网页上的一个兼容补丁**（[`compat/legacy-compat.js`](compat/legacy-compat.js)），dsh 本身逐字节相同。dsh 的网页要 Chrome / Edge 122 以上，
+老内核的浏览器打开后能看到页面，但左下角一直「重新连接中」、模型也配不了；兼容补丁给老浏览器补上缺的接口和颜色写法。
+补丁只在浏览器缺这些功能时才起作用，新浏览器上什么都不改，所以**不确定用户用什么浏览器时，直接用兼容版**。
 
 ---
 
 ## 1. 下载
 
-**离线包（推荐，服务器不能上外网时用）**：打开 [发布页](https://github.com/sqlrush/dsh-docker/releases/tag/v0.2.2-rc.5)，下载两个文件：
+**离线包（推荐，服务器不能上外网时用）**：打开 [发布页](https://github.com/sqlrush/dsh-docker/releases/tag/v0.2.2-rc.5-compat)，下载两个文件：
 
-- `dsh-0.2.2-rc.5-arm64.tar.gz`
-- `dsh-0.2.2-rc.5-arm64.tar.gz.sha256`
+- `dsh-0.2.2-rc.5-compat-arm64.tar.gz`
+- `dsh-0.2.2-rc.5-compat-arm64.tar.gz.sha256`
 
 或者用命令：
 
 ```bash
-B=https://github.com/sqlrush/dsh-docker/releases/download/v0.2.2-rc.5
-curl -fLO $B/dsh-0.2.2-rc.5-arm64.tar.gz
-curl -fLO $B/dsh-0.2.2-rc.5-arm64.tar.gz.sha256
+B=https://github.com/sqlrush/dsh-docker/releases/download/v0.2.2-rc.5-compat
+curl -fLO $B/dsh-0.2.2-rc.5-compat-arm64.tar.gz
+curl -fLO $B/dsh-0.2.2-rc.5-compat-arm64.tar.gz.sha256
 ```
 
 **直接拉取（服务器能访问 ghcr.io 时）**：
 
 ```bash
-docker pull ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64
+docker pull ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64
 ```
 
 拉取后跳到第 3 步。
@@ -44,10 +49,12 @@ docker pull ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64
 把两个文件拷到服务器的同一个目录，**每拷到一台机器都先校验一次**：
 
 ```bash
-sha256sum -c dsh-0.2.2-rc.5-arm64.tar.gz.sha256
+sha256sum -c dsh-0.2.2-rc.5-compat-arm64.tar.gz.sha256
 ```
 
-> 必须显示 `dsh-0.2.2-rc.5-arm64.tar.gz: OK`。
+> 必须显示 `dsh-0.2.2-rc.5-compat-arm64.tar.gz: OK`。
+
+已经先解压成 `.tar` 再传的，用同时提供的 `dsh-0.2.2-rc.5-compat-arm64.tar.sha256` 校验 `.tar`。
 
 **不是 `OK` 就停下，重新传。** 文件在传输途中（跨网摆渡、安全网关、U 盘）被破坏时，大小往往看起来是对的，内容却可能全是 0。导入时报 `unrecognized image format`、`tar -tf` 什么都列不出来，都是这个原因。
 
@@ -55,13 +62,13 @@ sha256sum -c dsh-0.2.2-rc.5-arm64.tar.gz.sha256
 
 ```bash
 # 有 docker
-docker load -i dsh-0.2.2-rc.5-arm64.tar.gz
+docker load -i dsh-0.2.2-rc.5-compat-arm64.tar.gz
 
 # 只有 containerd（K8s 节点常见）。-n k8s.io 不能省,否则 K8s 看不到这个镜像
-gunzip -c dsh-0.2.2-rc.5-arm64.tar.gz | ctr -n k8s.io images import -
+gunzip -c dsh-0.2.2-rc.5-compat-arm64.tar.gz | ctr -n k8s.io images import -
 ```
 
-> 最后一行出现镜像名 `ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64`。确认：`docker images | grep dsh` 或 `ctr -n k8s.io images ls -q | grep dsh`。
+> 最后一行出现镜像名 `ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64`。确认：`docker images | grep dsh` 或 `ctr -n k8s.io images ls -q | grep dsh`。
 
 ---
 
@@ -78,12 +85,34 @@ docker run -d --name dsh --restart unless-stopped \
   -e DSH_PUBLIC_URL=http://<服务器IP>:3080/ \
   -v /srv/dsh/data:/data/dsh \
   -v /srv/dsh/workspace:/workspace \
-  ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64
+  ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64
 ```
 
 `<服务器IP>` 换成浏览器访问这台服务器用的地址。`DSH_PUBLIC_URL` 必须和浏览器地址栏里的地址一致，否则页面能打开、但所有操作都会返回 403。
 
-### 3.2 用 K8s
+### 3.2 只有 containerd（用 `ctr`）
+
+`ctr` 没有端口映射，要用宿主机网络（`--net-host`），这时**必须同时设 `DSH_BIND` 和 `DSH_PUBLIC_URL`**，都写服务器网卡的 IP：
+
+```bash
+mkdir -p /srv/dsh/data /srv/dsh/workspace
+chown -R 1000:1000 /srv/dsh
+
+ctr -n k8s.io run -d --net-host \
+  --env DSH_BIND=<服务器IP> \
+  --env DSH_PUBLIC_URL=http://<服务器IP>:3080/ \
+  --mount type=bind,src=/srv/dsh/data,dst=/data/dsh,options=rbind:rw \
+  --mount type=bind,src=/srv/dsh/workspace,dst=/workspace,options=rbind:rw \
+  --log-uri file:///srv/dsh/dsh.log \
+  ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64 dsh
+```
+
+- `-n k8s.io` 要和第 2 步导入时的一致，否则提示找不到镜像；
+- `ctr` 没有 `logs` 命令，日志写在 `/srv/dsh/dsh.log`，登录地址用 `grep token= /srv/dsh/dsh.log` 取；
+- `ctr` 不会在服务器重启后自动拉起容器，重启后要重新执行上面的命令；
+- 停止并删除：`ctr -n k8s.io task kill dsh; ctr -n k8s.io task rm -f dsh; ctr -n k8s.io container rm dsh`。
+
+### 3.3 用 K8s
 
 用本仓库的 [`k8s/dsh.yaml`](k8s/dsh.yaml)，先改文件里标了「改」的三处：
 
@@ -110,6 +139,7 @@ dsh 每次启动会生成一个一次性登录令牌，写在启动日志里：
 
 ```bash
 docker logs dsh 2>&1 | grep token=                 # docker
+grep token= /srv/dsh/dsh.log                       # ctr(3.2 的写法)
 kubectl -n dsh logs deploy/dsh | grep token=       # K8s
 ```
 
@@ -120,6 +150,7 @@ kubectl -n dsh logs deploy/dsh | grep token=       # K8s
 - **这个地址等同于口令**，只发给要用的人，不要贴到群里。
 - 容器重启后令牌会换新，已经登录的浏览器要重新从日志里取一次地址。
 - 日志里的地址是容器内部地址（如 `192.168.x.x`）时，说明没设 `DSH_PUBLIC_URL`，见第 3 步。
+- 360 等双内核浏览器要切到**极速模式**（地址栏右侧的闪电图标）；兼容模式是 IE 内核，打不开。
 
 ---
 
@@ -159,8 +190,8 @@ kubectl -n dsh logs deploy/dsh | grep token=       # K8s
 带参数启动时，参数原样交给 dsh，例如：
 
 ```bash
-docker run --rm ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64 --version
-docker run --rm -e DEEPSEEK_API_KEY=<密钥> ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64 headless "用一句话介绍你自己"
+docker run --rm ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64 --version
+docker run --rm -e DEEPSEEK_API_KEY=<密钥> ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64 headless "用一句话介绍你自己"
 ```
 
 ---
@@ -171,6 +202,7 @@ docker run --rm -e DEEPSEEK_API_KEY=<密钥> ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm6
 |---|---|---|
 | 导入报 `unrecognized image format`，或 `tar -tf` 列不出内容 | 离线包在传输途中被破坏 | 第 2 步的校验，不是 `OK` 就重新传 |
 | 打开页面提示 401 | 没带登录令牌 | 用日志里带 `token=` 的完整地址（第 4 步） |
+| 页面能打开，但左下角一直「重新连接中」、模型配不了；F12 里 WebSocket 是 101 却反复断开 | 浏览器内核太老（低于 Chrome / Edge 122），比如 Windows 7 上的 Edge 109、360 企业安全浏览器 V13（Chromium 108） | 换兼容版镜像（`…-compat-arm64`）；或把浏览器升级到 122 以上。浏览器版本在「关于」页或地址栏输入 `chrome://version` 查看 |
 | 页面打开了，但操作都返回 403 | 浏览器地址和 `DSH_PUBLIC_URL` 不一致 | 改成一致后重建容器；或把浏览器用的地址加进 `DSH_TRUSTED_HOSTS` |
 | 容器起不来，日志说「目录不可写」 | 宿主机目录的属主不是 1000 | `chown -R 1000:1000 <宿主机目录>` |
 | K8s 里一直 `ErrImagePull` / `ImagePullBackOff` | Pod 所在节点没导入镜像，或导入时漏了 `-n k8s.io` | 在那个节点上重做第 2 步的 `ctr` 导入 |
@@ -194,12 +226,21 @@ docker run --rm -e DEEPSEEK_API_KEY=<密钥> ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm6
 - 网页登录流程：无令牌 401、带令牌跳转、带会话 200、不受信任的地址 403；
 - 断开外网时能正常启动；
 - K8s 部署样例经节点端口访问；
-- 离线包用 containerd 的 `ctr` 导入。
+- 离线包用 containerd 的 `ctr` 导入，并按 3.2 的写法启动、取登录地址、登录、停止删除（containerd 1.6）。
+
+兼容版另外实测（真实浏览器内核，不是模拟）：
+
+- **Chromium 108**（与 360 企业安全浏览器 V13 同一内核版本，比 Edge 109 还老一版）：登录后只建一条 WebSocket、不再「重新连接中」；
+  填 API 密钥并保存、打开「设置 → 模型」、新建会话发消息并收到流式回复，全程浏览器控制台零报错。普通版在同一内核上复现「重新连接中」；
+- **Chrome 最新版**：补丁不补任何接口、不改任何样式（页面上 `window.__dshLegacyCompat` 可查），行为与普通版相同。
+
+兼容版的已知差异：下拉菜单、弹出层在老内核上会出现在页面左上角，而不是紧挨着点击的按钮（这些位置用的是 Chrome 125 才有的「锚点定位」）。
+菜单内容和点击都正常，只是位置不同。
 
 **64K 内存页内核（部分鲲鹏服务器的默认配置）上还没有实测。** 装好后先执行：
 
 ```bash
-docker run --rm ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64 --version
+docker run --rm ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64 --version
 ```
 
 能输出 `0.2.2-rc.5` 再往下做。遇到崩溃请把输出发给我们。查内核页大小：`getconf PAGESIZE`，`65536` 即 64K。
@@ -214,6 +255,8 @@ docker run --rm ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64 --version
 ./build.sh                                   # arm64,产物在 dist/
 ARCH=amd64 ./build.sh                        # x86_64
 HTTPS_PROXY=http://<代理>:<端口> ./build.sh   # 构建期走代理(不写进镜像)
+COMPAT=1 ./build.sh                          # 兼容版:标签和离线包名带 -compat
+COMPAT=1 PULL=0 ./build.sh                   # 给已经构建过的普通版补出兼容版:复用本机的层,dsh 那一层与普通版完全相同
 ```
 
 换 dsh 版本：改 `VERSION` 文件。

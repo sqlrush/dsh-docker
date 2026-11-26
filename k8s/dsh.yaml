@@ -26,7 +26,7 @@ spec:
       #   kubernetes.io/hostname: <节点名>
       initContainers:
         - name: fix-owner          # 本机目录由 K8s 以 root 建出来,dsh 以 uid 1000 运行,先改属主
-          image: ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64          # 改:与下面的镜像一致
+          image: ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64          # 改:与下面的镜像一致
           imagePullPolicy: IfNotPresent
           securityContext: {runAsUser: 0}
           command: ["sh", "-c", "chown 1000:1000 /data/dsh /workspace"]
@@ -35,7 +35,7 @@ spec:
             - {name: workspace, mountPath: /workspace}
       containers:
         - name: dsh
-          image: ghcr.io/sqlrush/dsh:0.2.2-rc.5-arm64          # 改:用 ctr 导入的离线包时保持这个名字
+          image: ghcr.io/sqlrush/dsh:0.2.2-rc.5-compat-arm64          # 改:用 ctr 导入的离线包时保持这个名字
           imagePullPolicy: IfNotPresent
           env:
             - {name: DSH_PUBLIC_URL, value: "http://<节点IP>:30080/"}   # 改:浏览器实际访问的地址
